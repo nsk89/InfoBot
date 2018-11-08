@@ -17,11 +17,11 @@ bot_id = 509991584067223571
 guild = client.get_guild(509992354543960064)
 
 
-num_ports = {21: "FTP", 22: "SSH", 23: "Telnet", 25: "SMTP",
+num_ports = {21: "FTP", 22: "SSH", 23: "Telnet", 25: "SMTP", # List of ports
          53: "DNS", 67: "DHCP Server", 68: "DHCP Client",
-         80: "HTTP", 110: "POP3", 143: "IMAP", 443: "HTTPS",
+         80: "HTTP", 110: "POP3", 143: "IMAP", 443: "HTTPS",                # Need both for the port search later.
          }
-text_ports = {v: k for k, v in num_ports.items()}
+text_ports = {v: k for k, v in num_ports.items()} # Reversed list of ports
 
 
 def community_report(guild):
@@ -29,7 +29,7 @@ def community_report(guild):
     idle = 0
     offline = 0
 
-    for member in guild.members:
+    for member in guild.members: # Go through members in the server
         if str(member.status) == "online":
             online += 1
         if str(member.status) == "offline":
@@ -42,24 +42,23 @@ def community_report(guild):
 
 async def user_metrics_background_task():
     await client.wait_until_ready()
-    global guild
     guild = client.get_guild(509992354543960064)
 
     while not client.is_closed():
         try:
-            online, idle, offline = community_report(guild)
+            online, idle, offline = community_report(guild) # Get the data
             with open("usermetrics.csv","a") as f:
-                f.write(f"{int(time.time())},{online},{idle},{offline}\n")
+                f.write(f"{int(time.time())},{online},{idle},{offline}\n") # Put data in CSV file
 
             plt.clf()
-            df = pd.read_csv("usermetrics.csv", names = ['time', 'online', 'idle', 'offline'])
+            df = pd.read_csv("usermetrics.csv", names = ['time', 'online', 'idle', 'offline']) # Read CSV file
             df['date'] = pd.to_datetime(df['time'],unit = 's')
             df['total'] = df['online'] + df['offline'] + df['idle']
             df.drop("time", 1,  inplace = True)
             df.set_index("date", inplace = True)
-            df['online'].plot(), df['offline'].plot(), df['idle'].plot()
+            df['online'].plot(), df['offline'].plot(), df['idle'].plot() # Map data onto the grapgh
             plt.legend()
-            plt.savefig("online.png")
+            plt.savefig("online.png") # Save graph as image
 
             await asyncio.sleep(30)
 
@@ -75,7 +74,7 @@ async def on_ready(): # Connection confirmation.
 
 @client.event # Event wrapper.
 async def on_message(message, *args):
-    print(f"New message in {message.channel}:")
+    print(f"New message in {message.channel}:") # Outputs message in the terminal.
     print(f"    Author: {message.author} / {message.author.id}\n    Screen name: {message.author.name}\n    Message: {message.content}\n    Date: {message.created_at}\n")
 
     guild = client.get_guild(509992354543960064)
@@ -84,7 +83,7 @@ async def on_message(message, *args):
         await message.channel.send(f"Hello, <@!{message.author.id}>. Use !help to get a list of my commands.")
 
 
-    elif "!help" == message.content.lower():
+    elif "!help" == message.content.lower(): # Command to list commands
         await message.channel.send("```\
     !help - Show this message\n\
     !clear - Delete channel messages up to 14 days old.\n\
@@ -94,32 +93,32 @@ async def on_message(message, *args):
     !user_analysis - Show a graph of activity.```")
 
 
-    elif "!ports" == message.content.lower():
+    elif "!ports" == message.content.lower(): # Shows a list of common ports. Going to make it into a search.
         await message.channel.send(f"```py\nCommon Ports: \n{pd.DataFrame.from_dict(text_ports, orient = 'index')}```")
 
 
     elif message.content.startswith("!passgen"): # Password generator
-        args = message.content.split(" ")[1] # Get password length
+        args = message.content.split(" ")[1]
 
         try:
-            length = int(args)
+            length = int(args) # Check if input is an int
 
         except ValueError:
             await message.channel.send("Error, not a valid input!")
 
 
-        chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.:_?$&#!<>'
+        chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.:_?$&#!<>' # Chars in password
         password = ''
         
-        if length < 8 or length > 32:
+        if length < 8 or length > 32: # Control length
             await message.channel.send("Error, not a valid input!")
 
-        else:
-            for i in range(length): # Create the password
+        else: # Create password and send it as a private message
+            for i in range(length): 
                 password += random.choice(chars)
 
             await message.author.create_dm()
-            await message.author.send(f'Your password is: {password}') # Send the password as a DM
+            await message.author.send(f'Your password is: {password}')
 
 
     elif "!clear" == message.content.lower(): # Delete all messages (Need to implement number of messages to delete)
@@ -127,18 +126,20 @@ async def on_message(message, *args):
         messages = []
         channel = message.channel
 
-        async for message in message.channel.history():
-            counter += 1
-            messages.append(message)
+        # Need to add date check
 
-        await channel.delete_messages(messages)
+        async for message in message.channel.history(): # Go through messages in channel
+            counter += 1
+            messages.append(message) # Add message to list
+
+        await channel.delete_messages(messages) # Delete messages from list
 
         clear_end = await message.channel.send(f"I deleted {counter} messages.")
         messages.append(clear_end)
 
         time.sleep(1)
 
-        await channel.delete_messages(messages)
+        await channel.delete_messages(messages) # delete the bot message
 
 
     elif "!user_info" == message.content.lower(): # Gives server info
