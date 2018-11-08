@@ -3,11 +3,14 @@
 import discord
 import asyncio
 from discord.ext.commands import Bot
-import random
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import style
+from Crypto import Random
+import hashlib
+import hmac
+import base64 
 
 style.use("fivethirtyeight")
 
@@ -66,6 +69,31 @@ async def user_metrics_background_task():
             print(str(e))
             await asyncio.sleep(5)
 
+        
+class BotCrypto: # Massive shoutout to @Nanibongwa on Discord for this implementation.
+    def generate_password(self, length):
+        # generate random bytes and hash returned data
+        password = self.hash_data(Random.get_random_bytes(length))
+        secret = self.hash_data(Random.get_random_bytes(length))
+        # create secure hmac'd hash password
+        hmac_pass = base64.b64encode(hmac.new(password, secret, hashlib.sha3_384).digest())
+    
+        return hmac_pass[:length].decode()
+
+    def hash_data(self, data):  # convert data to hash
+        data = self.check_for_bytes(data)
+        hasher = hashlib.new('sha3_384')
+        hasher.update(data)
+
+        return self.check_for_bytes(hasher.hexdigest())
+
+    def check_for_bytes(self, data):  # verify incoming data is in byte form
+        if type(data) != bytes:
+            data = bytes(data, 'utf-8')
+            return data
+        else:
+            return data
+
 
 @client.event
 async def on_ready(): # Connection confirmation.
@@ -106,16 +134,13 @@ async def on_message(message, *args):
         except ValueError:
             await message.channel.send("Error, not a valid input!")
 
-
-        chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.:_?$&#!<>' # Chars in password
-        password = ''
         
         if length < 8 or length > 32: # Control length
             await message.channel.send("Error, not a valid input!")
 
         else: # Create password and send it as a private message
-            for i in range(length): 
-                password += random.choice(chars)
+            crypto = BotCrypto()
+            password = crypto.generate_password(length)
 
             await message.author.create_dm()
             await message.author.send(f'Your password is: {password}')
@@ -144,7 +169,7 @@ async def on_message(message, *args):
 
     elif "!user_info" == message.content.lower(): # Gives server info
         online, idle, offline = community_report(guild)
-        await message.channel.send(f"```py\nTotal Users: {guild.member_count}\n    Online: {online}.\n    Idle/busy/dnd: {idle}.\n    Offline: {offline}```")
+        await message.channel.send(f"```py\nTotal Users: {guild.member_count}\n    Online: {online}\n    Idle/busy/dnd: {idle}\n    Offline: {offline}```")
 
 
     elif "!user_analysis" == message.content.lower(): # Sends a graph of user activity
